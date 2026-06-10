@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>BB Order Bot</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #1a2332;
+    color: #e8edf5;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    background: #1e2d42;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #2a3f5e;
+  }
+  .header-title { font-size: 18px; font-weight: 700; }
+  .header-sub { font-size: 12px; color: #7a9abf; margin-top: 2px; }
+  .ready-badge {
+    background: #1e3a2a;
+    color: #4caf73;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid #2d5a3d;
+  }
+
+  /* Logo */
+  .logo {
+    width: 42px; height: 42px;
+    background: linear-gradient(135deg, #2ecc71, #27ae60);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 14px; color: white;
+    margin-right: 10px;
+  }
+  .header-left { display: flex; align-items: center; }
+
+  /* Cards */
+  .section {
+    margin: 16px;
+    background: #1e2d42;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid #2a3f5e;
+  }
+  .section-title {
+    padding: 12px 16px 8px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #e8edf5;
+  }
+  .info-item {
+    padding: 10px 16px 14px;
+    border-top: 1px solid #2a3f5e;
+  }
+  .info-label { font-size: 11px; color: #7a9abf; margin-bottom: 4px; }
+  .info-value { font-size: 18px; font-weight: 700; color: #e8edf5; }
+
+  /* Buttons */
+  .actions { margin: 16px; }
+  .actions-title {
+    font-size: 15px; font-weight: 700;
+    margin-bottom: 10px; color: #e8edf5;
+  }
+  .btn {
+    width: 100%; padding: 16px;
+    border: none; border-radius: 10px;
+    font-size: 15px; font-weight: 700;
+    cursor: pointer; margin-bottom: 10px;
+    transition: opacity .15s, transform .1s;
+    letter-spacing: 0.5px;
+  }
+  .btn:active { opacity: .85; transform: scale(.98); }
+  .btn-primary {
+    background: #2ecc71;
+    color: #0f1f0f;
+    text-transform: uppercase;
+  }
+  .btn-secondary {
+    background: #1e3050;
+    color: #e8edf5;
+    border: 1px solid #2a4a7a;
+    text-transform: none;
+  }
+
+  /* Bottom nav */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: #1e2d42;
+    display: flex;
+    border-top: 1px solid #2a3f5e;
+  }
+  .nav-btn {
+    flex: 1; padding: 14px 0;
+    border: none; background: transparent;
+    color: #7a9abf; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: color .15s;
+  }
+  .nav-btn.active { color: #2ecc71; border-top: 2px solid #2ecc71; }
+
+  /* Tab content */
+  .tab { display: none; padding-bottom: 80px; }
+  .tab.active { display: block; }
+
+  /* Cart / Orders empty state */
+  .empty-state {
+    text-align: center; padding: 60px 20px;
+    color: #7a9abf;
+  }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-text { font-size: 15px; }
+
+  /* Place Orders form */
+  .form-section { margin: 16px; }
+  .form-group { margin-bottom: 14px; }
+  .form-label { font-size: 12px; color: #7a9abf; margin-bottom: 6px; display: block; }
+  .form-input, .form-select {
+    width: 100%; padding: 12px 14px;
+    background: #1e2d42; border: 1px solid #2a3f5e;
+    border-radius: 10px; color: #e8edf5; font-size: 14px;
+    outline: none;
+  }
+  .form-input:focus, .form-select:focus { border-color: #2ecc71; }
+  .form-select option { background: #1e2d42; }
+
+  /* Loading */
+  .loading { text-align: center; padding: 40px; color: #7a9abf; }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+    background: #2ecc71; color: #0f1f0f;
+    padding: 10px 20px; border-radius: 20px;
+    font-weight: 600; font-size: 13px;
+    opacity: 0; transition: opacity .3s;
+    z-index: 999; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+  .toast.error { background: #e74c3c; color: white; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">BB</div>
+    <div>
+      <div class="header-title">BigBasket Bot</div>
+      <div class="header-sub">Fast ordering dashboard</div>
+    </div>
+  </div>
+  <div class="ready-badge">Ready</div>
+</div>
+
+<!-- HOME TAB -->
+<div id="tab-home" class="tab active">
+  <div class="section">
+    <div class="section-title">Start</div>
+    <div class="info-item">
+      <div class="info-label">Wallet</div>
+      <div class="info-value" id="home-wallet">Rs0</div>
+    </div>
+    <div class="info-item">
+      <div class="info-label">Account</div>
+      <div class="info-value" id="home-account">Loading...</div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <div class="actions-title">Actions</div>
+    <button class="btn btn-primary" onclick="switchTab('cart')">PLACE ORDERS</button>
+    <button class="btn btn-secondary" onclick="showManageAccounts()">Manage Accounts</button>
+    <button class="btn btn-secondary" onclick="switchTab('orders')">History</button>
+    <button class="btn btn-secondary" onclick="showAddMoney()">Add Money</button>
+  </div>
+</div>
+
+<!-- CART TAB -->
+<div id="tab-cart" class="tab">
+  <div class="section" style="margin-top:16px">
+    <div class="section-title">🛒 Your Cart</div>
+  </div>
+  <div id="cart-content">
+    <div class="loading">Loading cart...</div>
+  </div>
+</div>
+
+<!-- ORDERS TAB -->
+<div id="tab-orders" class="tab">
+  <div class="section" style="margin-top:16px">
+    <div class="section-title">📦 Order History</div>
+  </div>
+  <div id="orders-content">
+    <div class="loading">Loading orders...</div>
+  </div>
+</div>
+
+<!-- Bottom Nav -->
+<div class="bottom-nav">
+  <button class="nav-btn active" id="nav-home" onclick="switchTab('home')">Home</button>
+  <button class="nav-btn" id="nav-cart" onclick="switchTab('cart')">Cart</button>
+  <button class="nav-btn" id="nav-orders" onclick="switchTab('orders')">Orders</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+
+const BOT_API = ""; // Set to your bot's backend URL if you add one
+
+// ── State ─────────────────────────────────────────────────────────────────
+const user = tg.initDataUnsafe?.user || {};
+let userData = { wallet: 0, phone: "None" };
+
+// ── Init ──────────────────────────────────────────────────────────────────
+window.onload = () => {
+  loadUserData();
+};
+
+function loadUserData() {
+  // Pull data passed via start_param or directly via tg.initData
+  const sp = tg.initDataUnsafe?.start_param || "";
+  if (sp.startsWith("wallet_")) {
+    userData.wallet = parseInt(sp.replace("wallet_", "")) || 0;
+  }
+  document.getElementById("home-wallet").textContent = `Rs${userData.wallet}`;
+  document.getElementById("home-account").textContent = userData.phone;
+  loadCart();
+  loadOrders();
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById("tab-" + name).classList.add("active");
+  document.getElementById("nav-" + name).classList.add("active");
+}
+
+// ── Cart ──────────────────────────────────────────────────────────────────
+function loadCart() {
+  const el = document.getElementById("cart-content");
+  // Simulate: In real bot, cart data comes from your backend
+  el.innerHTML = `
+    <div class="empty-state">
+      <div class="empty-icon">🛒</div>
+      <div class="empty-text">Your cart is empty.<br>Add items on BigBasket app.</div>
+    </div>
+    <div style="margin:16px">
+      <button class="btn btn-primary" onclick="confirmOrder()">PLACE ORDER</button>
+    </div>
+  `;
+}
+
+// ── Orders ────────────────────────────────────────────────────────────────
+function loadOrders() {
+  const el = document.getElementById("orders-content");
+  el.innerHTML = `
+    <div class="empty-state">
+      <div class="empty-icon">📦</div>
+      <div class="empty-text">No orders yet.</div>
+    </div>
+  `;
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────
+function showManageAccounts() {
+  tg.showAlert(`📱 Account\n\nPhone: ${userData.phone}\nWallet: Rs${userData.wallet}\n\nTo change account, use /logout in the bot.`);
+}
+
+function showAddMoney() {
+  tg.showPopup({
+    title: "➕ Add Money",
+    message: "Enter amount to add to your wallet:",
+    buttons: [
+      { id: "100", type: "default", text: "₹100" },
+      { id: "500", type: "default", text: "₹500" },
+      { id: "1000", type: "default", text: "₹1000" },
+      { id: "cancel", type: "cancel" }
+    ]
+  }, (btnId) => {
+    if (btnId && btnId !== "cancel") {
+      const amount = parseInt(btnId);
+      tg.sendData(JSON.stringify({ action: "add_money", amount }));
+      showToast(`₹${amount} add request sent!`);
+    }
+  });
+}
+
+function confirmOrder() {
+  tg.showConfirm("Place order from your BigBasket cart?", (ok) => {
+    if (ok) {
+      tg.sendData(JSON.stringify({ action: "place_order" }));
+      showToast("Order request sent!");
+    }
+  });
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+function showToast(msg, isError = false) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "toast show" + (isError ? " error" : "");
+  setTimeout(() => { t.className = "toast"; }, 2500);
+}
+</script>
+</body>
+</html>
